@@ -1,8 +1,10 @@
 ﻿using HtmlAgilityPack;
+using LinkCount.Conditions;
+using LinkCount.Conditions.LinkConditions;
+using LinkCount.Conditions.TagConditions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using LinkCount.Conditions;
 
 namespace LinkCount
 {
@@ -12,13 +14,21 @@ namespace LinkCount
         private readonly int _maxDepth;
         private readonly StringComparer _stringComparer;
         private int _loopCount;
-        private IEnumerable<ICondition> _conditions = new List<ICondition>();
+        private readonly List<IPageCondition> _pageConditions = new List<IPageCondition>();
+        private readonly List<ITagCondition> _tagConditions = new List<ITagCondition>();
+        private readonly List<ILinkCondition> _linkConditions = new List<ILinkCondition>();
 
         public LinkCounter(string baseAddress, int maxDepth = 1)
         {
             _baseAddress = baseAddress;
             _maxDepth = maxDepth;
             _stringComparer = new StringComparer();
+            //_pageConditions.Add(new SizePageCondition(200000));
+            //_pageConditions.Add(new SizePageCondition(100000));
+            //_pageConditions.Add(new SizePageCondition(200000));
+            //_tagConditions.Add(new TypeTagCondition());
+            _tagConditions.Add(new TypeTagCondition("img", "src"));
+            //_linkConditions.Add(new ContainsLinkCondition("catalog"));
         }
 
         public IEnumerable<string> GetPathsInLoop(IEnumerable<string> paths = null)
@@ -31,11 +41,13 @@ namespace LinkCount
 
             if (paths == null)
                 paths = new List<string> { "/" };
-
-            var tasks = from path in paths
-                select Task.Run(async () => await GetPathsAsync(path));
-            Task.WaitAll(tasks.ToArray());
             
+            // get pages in tasks
+            var tasks = (from path in paths
+                        where path?.StartsWith('/') ?? false
+                        select Task.Run(async () => await GetPathsAsync(path))).ToList();
+            Task.WaitAll(tasks.ToArray());
+
             var allPaths = tasks.SelectMany(x => x.Result);
             var newPaths = allPaths.Distinct(_stringComparer).Except(paths, _stringComparer);
             var getNewPaths = GetPathsInLoop(newPaths);
@@ -47,14 +59,20 @@ namespace LinkCount
         {
             var web = new HtmlWeb();
             var htmlDoc = await web.LoadFromWebAsync(_baseAddress + path);
-            var aTags = htmlDoc.DocumentNode.Descendants("a").ToList();
 
-            var listNewLinks = from aTag in aTags
-                let hrefAttr = aTag.GetAttributeValue("href", null)
-                where hrefAttr?.StartsWith('/') ?? false
-                select hrefAttr;
+            // page conditions
+            if (!_pageConditions.All(x => x.Check(htmlDoc.DocumentNode)))
+                return new List<string>();
 
-            return listNewLinks.Distinct(_stringComparer);
+            // tag conditions
+            var links = _tagConditions.Select(x => x.Filter(htmlDoc.DocumentNode)).SelectMany(x => x);
+
+            // link conditions
+            var filteredLinks = _linkConditions.Any()
+                ? _linkConditions.Select(x => x.Filter(links)).SelectMany(x => x)
+                : links;
+
+            return filteredLinks.Distinct(_stringComparer);
         }
     }
 }
