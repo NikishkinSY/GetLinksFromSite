@@ -1,7 +1,5 @@
 ﻿using HtmlAgilityPack;
 using LinkCount.Conditions;
-using LinkCount.Conditions.LinkConditions;
-using LinkCount.Conditions.TagConditions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,17 +16,25 @@ namespace LinkCount
         private readonly List<ITagCondition> _tagConditions = new List<ITagCondition>();
         private readonly List<ILinkCondition> _linkConditions = new List<ILinkCondition>();
 
-        public LinkCounter(string baseAddress, int maxDepth = 1)
+        public LinkCounter(
+            string baseAddress, 
+            int maxDepth, 
+            IEnumerable<IPageCondition> pageConditions,
+            IEnumerable<ITagCondition> tagConditions,
+            IEnumerable<ILinkCondition> linkConditions)
         {
             _baseAddress = baseAddress;
             _maxDepth = maxDepth;
             _stringComparer = new StringComparer();
-            //_pageConditions.Add(new SizePageCondition(200000));
-            //_pageConditions.Add(new SizePageCondition(100000));
-            //_pageConditions.Add(new SizePageCondition(200000));
-            //_tagConditions.Add(new TypeTagCondition());
-            _tagConditions.Add(new TypeTagCondition("img", "src"));
-            //_linkConditions.Add(new ContainsLinkCondition("catalog"));
+
+            if (pageConditions != null)
+                _pageConditions.AddRange(pageConditions);
+
+            if (tagConditions != null)
+                _tagConditions.AddRange(tagConditions);
+
+            if (linkConditions != null)
+                _linkConditions.AddRange(linkConditions);
         }
 
         public IEnumerable<string> GetPathsInLoop(IEnumerable<string> paths = null)

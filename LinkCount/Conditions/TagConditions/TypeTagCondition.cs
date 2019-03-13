@@ -9,7 +9,7 @@ namespace LinkCount.Conditions.TagConditions
         private string _tagType { get; }
         private string _attributeType { get; }
 
-        public TypeTagCondition(string tagType = "a", string attributeType = "href")
+        public TypeTagCondition(string tagType, string attributeType)
         {
             _tagType = tagType;
             _attributeType = attributeType;
