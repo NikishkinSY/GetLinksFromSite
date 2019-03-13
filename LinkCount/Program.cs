@@ -20,7 +20,7 @@ namespace LinkCount
                 MaxDepth,
                 new List<IPageCondition> { new SizePageCondition(200000) },
                 new List<ITagCondition> { new TypeTagCondition("a", "href"), new TypeTagCondition("img", "src") },
-                null//new List<ILinkCondition> { new ContainsLinkCondition("catalog") }
+                new List<ILinkCondition> { new ContainsLinkCondition("catalog") }
                 );
             var allPaths = counter.GetPathsInLoop().ToList();
 
